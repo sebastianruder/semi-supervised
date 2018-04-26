@@ -1,0 +1,148 @@
+\documentclass{article}
+
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+\newcommand*\xor{\mathbin{\oplus}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\begin{document}
+
+\begin{algorithm}\centering
+\caption{Self-training}
+\begin{algorithmic}[1]
+\Repeat
+	\State $m \gets train\_model(L)$
+	\For {$x \in U$}
+    	\If {$\max m(x) > \tau$}
+        	\State $L \gets L \cup \{(x, p(x))\}$
+    	\EndIf
+    \EndFor
+\Until {no more predictions are confident}
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Co-training }
+\begin{algorithmic}[1]
+\Repeat
+	\State $m_1 \gets train\_classifier(L^1)$
+    \State $m_2 \gets train\_classifier(L^2)$
+	\For {$x \in U$}
+    	\If {$\max m_1(x) > \tau \: {\bf and} \: \max m_2(x) < \tau   $}
+           	\State $L^2 \gets L^2 \cup \{(x, p_1(x))\}$
+     \EndIf
+     \If {$\max m_2(x) > \tau \: {\bf and} \: \max m_1(x) < \tau   $}
+           	\State $L^1 \gets L^1 \cup \{(x, p_2(x))\}$
+     \EndIf
+    \EndFor
+\Until {no more predictions are confident based on \emph{one} classifier}
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Democratic Co-learning}
+\begin{algorithmic}[1]
+\Repeat
+	\For {$i \in \{1..n\}$}
+		\State $m_i \gets train\_model(L)$
+	\EndFor
+	\For {$x \in U$}
+		\For {$j \in \{1..C\}$}
+			\State $M \gets \{i \: | \: p_i(x) = j \}$
+			\If {$|M| > n/2 \: {\bf and} \: \sum_{i \in M} w_i > \sum_{i \notin M} w_i $}
+           		\State $L \gets L \cup \{(x, j)\}$
+    			\EndIf
+        \EndFor
+	\EndFor
+\Until {none of $m_i$ changes}
+\State apply weighted majority vote over $m_i$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Tri-training } 
+\begin{algorithmic}[1]
+\For {$i \in \{1..3\}$}
+\State $S_i \gets bootstrap\_sample(L)$
+\State $m_i \gets train\_model(S_i)$
+\EndFor
+\Repeat
+	\For {$i \in \{1..3\}$}
+        \State $L_i \gets \emptyset$
+		\For {$x \in U$}
+            \If {$p_j(x) = p_k(x)(j,k \neq i)$}
+            	\State $L_i \gets L_i \cup \{(x, p_j(x))\}$
+            \EndIf
+        \EndFor
+       \State $m_i \gets train\_model(L \cup L_i)$
+	\EndFor
+\Until {none of $m_i$ changes}
+\State apply majority vote over $m_i$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t!]
+\caption{Multi-task Tri-training}
+\begin{algorithmic}[1]
+\State $m \gets train\_model(L)$
+\Repeat
+	\For {$i \in \{1..3\}$}
+        \State $L_i \gets \emptyset$
+		\For {$x \in U$}
+            \If {$p_j(x) = p_k(x)(j,k \neq i)$}
+            	\State $L_i \gets L_i \cup \{(x, p_j(x))\}$
+            \EndIf
+        \EndFor
+        \If {$i = 3$}
+        		\State $m_i \gets train\_model(L_i)$
+        \Else
+        		\State $m_i \gets train\_model(L \cup L_i)$
+        \EndIf
+	\EndFor
+\Until {end condition is met}
+\State apply majority vote over $m_i$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t!]
+\caption{$\Pi$-model}
+\begin{algorithmic}[1]
+\Repeat
+	\For {$x \in L + U$}
+		\State $z \gets m(g(x))$
+		\State $\tilde{z} \gets m(g(x))$
+		\State $loss \gets \lambda \| z - \tilde{z} \|^2$ 
+		\If {$x \in L$}
+			\State $loss \gets loss + H(z, y) $ 
+		\EndIf
+		\State update $m$ with regard to $loss$
+	\EndFor
+\Until {end condition is met}
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t!]
+\caption{Temporal Ensembling}
+\begin{algorithmic}[1]
+\Repeat
+	\State $Z \gets \mathbf{0} \in \mathbb{R}^{|L+U| \times C}$
+	\State $\tilde{z} \gets \mathbf{0} \in \mathbb{R}^{|L+U| \times C}$
+	\For {$x \in L + U$}
+		\State $z \gets m(g(x))$
+		\State $loss \gets \lambda \| z - \tilde{z} \|^2$ 
+		\If {$x \in L$}
+			\State $loss \gets loss + H(z, y) $ 
+		\EndIf
+		\State update $m$ with regard to $loss$
+	\EndFor
+	\State $Z \gets \alpha Z + (1-\alpha)z$
+	\State $\tilde{z} \gets Z/(1- \alpha^t)$
+\Until {end condition is met}
+\end{algorithmic}
+\end{algorithm}
+
+\end{document}
